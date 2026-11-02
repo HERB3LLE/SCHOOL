@@ -1,0 +1,612 @@
+
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AFTER SCHOOL</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#eee;font-family:Georgia,serif}
+#game{position:fixed;inset:0}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+#title{position:absolute;top:18px;left:20px;font:12px Arial;letter-spacing:4px;color:#ddd;opacity:.8}
+#hint{position:absolute;left:50%;bottom:13%;transform:translateX(-50%);padding:10px 16px;background:#111b;border:1px solid #ffffff35;font:14px Arial;opacity:0;white-space:nowrap}
+#crosshair{position:absolute;left:50%;top:50%;width:4px;height:4px;background:white;border-radius:50%;transform:translate(-50%,-50%)}
+#help{position:absolute;right:18px;bottom:18px;color:#ddd9;font:11px/1.8 Arial;text-align:right}
+#mobile{display:none;position:absolute;left:20px;bottom:22px;width:120px;height:120px;border:1px solid #ffffff55;border-radius:50%;background:#1115;pointer-events:auto;touch-action:none}
+#stick{position:absolute;left:37px;top:37px;width:44px;height:44px;border-radius:50%;background:#ffffff55}
+#lookzone{display:none;position:absolute;right:0;top:0;width:55%;height:75%;pointer-events:auto;touch-action:none}
+#interact{display:none;position:absolute;right:25px;bottom:45px;width:62px;height:62px;border-radius:50%;border:1px solid #fff8;background:#1119;color:white;font:bold 15px Arial}
+#albumUI,#noteUI{display:none;position:fixed;inset:0;background:#080807ed;z-index:5;align-items:center;justify-content:center;padding:12px}
+#book{position:relative;width:min(900px,96vw);height:min(650px,88vh);display:flex;background:#b6a889;box-shadow:0 20px 70px #000;border:8px solid #342c22;color:#40382e}
+.page{width:50%;height:100%;padding:clamp(12px,3vw,35px);background:linear-gradient(90deg,#d4c7a9,#eee4cd 10%,#e9dfc7 90%,#d3c6a8);position:relative;overflow:auto}
+.page:first-child{border-right:1px solid #9c8e70}
+.book-title{text-align:center;margin:12% 0 8%;font-size:clamp(25px,4vw,42px);letter-spacing:5px;font-weight:normal}
+.book-sub{text-align:center;font:12px Arial;letter-spacing:3px;color:#75664d}
+.school-stamp{margin:12% auto 0;width:120px;height:120px;border:1px solid #9b8966;border-radius:50%;display:grid;place-items:center;text-align:center;font-size:12px;color:#796b51}
+.page-heading{text-align:center;font-size:18px;font-weight:normal;letter-spacing:3px;margin:0 0 18px}
+.group-placeholder{height:65%;min-height:210px;border:1px solid #a99b7c;background:#c9bea5;display:flex;align-items:center;justify-content:center;text-align:center;color:#6e624c;font:13px/1.8 Arial}
+.profiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.profile{border:1px solid #b5a584;padding:5px;text-align:center;background:#f2e9d5;cursor:pointer}
+.profile img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;filter:sepia(.28) saturate(.65)}
+.profile .empty{width:100%;aspect-ratio:3/4;display:grid;place-items:center;background:#c9bea5;font:11px Arial;color:#8b7d61}
+.profile small{display:block;margin-top:5px;font:12px Arial}
+.roster{list-style:none;padding:0;margin:20px auto;max-width:320px;font:15px/2 Arial}
+.roster li{border-bottom:1px dotted #b2a482;padding:2px 8px}
+.roster span{display:inline-block;width:34px;color:#918366}
+#bookNav{position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;gap:12px;z-index:3}
+#bookNav button,#closeBook{border:1px solid #8e8064;background:#e9dfc7;color:#40382e;padding:8px 14px;font:12px Arial}
+#closeBook{position:absolute;top:8px;right:8px;z-index:4}
+#profileDetail{display:none;position:absolute;inset:0;background:#17140fdd;z-index:6;align-items:center;justify-content:center;padding:20px}
+#detailCard{width:min(430px,90vw);background:#e9dfc7;color:#40382e;padding:24px;text-align:center}
+#detailCard img{width:130px;height:170px;object-fit:cover;filter:sepia(.3)}
+#detailCard button{margin-top:15px;padding:8px 18px;background:#40382e;color:#eee;border:0}
+#toast{position:fixed;top:20%;left:50%;transform:translateX(-50%);padding:12px 18px;background:#111d;border:1px solid #ffffff44;font:13px Arial;opacity:0;transition:opacity .25s;z-index:8}
+#note{width:min(420px,90vw);min-height:250px;padding:35px 28px;background:#d8cba9;color:#40382e;font:16px/1.9 serif}
+#note button{display:block;margin:20px auto 0;padding:7px 18px}
+@media(max-width:700px){
+ #help{display:none}
+ #mobile{display:block}
+ #lookzone{display:block}
+ #interact{display:block}
+ #book{height:88vh}
+ .page{padding:14px 9px}
+ .profiles{gap:5px}
+ .profile{padding:3px}
+ .profile small{font-size:10px}
+ .page-heading{font-size:14px}
+}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud">
+ <div id="title">AFTER SCHOOL / LIBRARY</div>
+ <div id="crosshair"></div>
+ <div id="hint">E 졸업앨범 꺼내기</div>
+ <div id="help">W A S D 이동<br>마우스 둘러보기<br>E 조사 / 꺼내기</div>
+ <div id="mobile"><div id="stick"></div></div>
+ <div id="lookzone"></div>
+ <button id="interact">E</button>
+</div>
+<div id="toast"></div>
+
+<div id="albumUI">
+ <div id="book">
+  <button id="closeBook">닫기 ✕</button>
+  <section class="page"><div id="leftPage"></div><div id="leftNo"></div></section>
+  <section class="page"><div id="rightPage"></div><div id="rightNo"></div></section>
+  <div id="bookNav">
+   <button id="prev">이전</button>
+   <button id="next">다음</button>
+  </div>
+ </div>
+ <div id="profileDetail"><div id="detailCard"></div></div>
+</div>
+
+<div id="noteUI" style="display:none">
+ <div id="note">
+  2024학년도 졸업앨범<br><br>
+  왜 이 여섯 명의 사진만 남아 있는 걸까?
+  <br><br>
+  <small>종이 뒷면에는 희미한 글씨가 더 적혀 있다.</small>
+  <button id="closeNote">접기</button>
+ </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const mount=document.getElementById('game');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x77766e);
+scene.fog=new THREE.FogExp2(0x77766e,.035);
+
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,80);
+camera.position.set(0,1.65,6);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=true;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+mount.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xc8d0d2,0x494035,1.45));
+
+const sun=new THREE.DirectionalLight(0xffe6bd,2.1);
+sun.position.set(-5,8,4);
+sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+scene.add(sun);
+
+const windowLight=new THREE.PointLight(0xb8c9d1,1.1,12);
+windowLight.position.set(-4,2.5,-4);
+scene.add(windowLight);
+
+const mat=(c)=>new THREE.MeshStandardMaterial({color:c,roughness:.9});
+
+const floorMat=mat(0x554b3d);
+const wallMat=mat(0x898477);
+const wood=mat(0x493b2c);
+const wood2=mat(0x62503b);
+const dark=mat(0x29251f);
+
+function box(w,h,d,m,x,y,z){
+ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+ o.position.set(x,y,z);
+ o.castShadow=true;
+ o.receiveShadow=true;
+ scene.add(o);
+ return o;
+}
+
+box(14,.2,16,floorMat,0,-.12,0);
+box(14,.2,16,wallMat,0,4,-8);
+box(.2,4,16,wallMat,-7,2,0);
+box(.2,4,16,wallMat,7,2,0);
+box(14,4,.2,wallMat,0,2,8);
+
+const glass=new THREE.MeshStandardMaterial({
+ color:0x91a7aa,
+ roughness:.25,
+ transparent:true,
+ opacity:.35
+});
+
+for(let z=-5;z<=3;z+=4){
+ box(.08,1.8,2.5,wood,-6.86,2.55,z);
+ const pane=new THREE.Mesh(new THREE.BoxGeometry(.04,1.55,2.25),glass);
+ pane.position.set(-6.8,2.55,z);
+ scene.add(pane);
+ box(.08,.08,2.5,wood,-6.72,2.55,z);
+ box(.08,1.8,.08,wood,-6.72,2.55,z);
+}
+
+const shelves=[];
+let albumObject=null;
+
+function shelf(x,z,album=false){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+
+ const add=(w,h,d,m,px,py,pz)=>{
+  const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  o.position.set(px,py,pz);
+  o.castShadow=true;
+  o.receiveShadow=true;
+  g.add(o);
+  return o;
+ };
+
+ add(2.5,3.2,.16,dark,0,1.6,0);
+ add(.14,3.3,.55,wood,-1.25,1.65,.08);
+ add(.14,3.3,.55,wood,1.25,1.65,.08);
+
+ for(let y=.55;y<3.2;y+=.85){
+  add(2.5,.12,.62,wood,0,y,.08);
+ }
+
+ for(let level=0;level<3;level++){
+  let xcur=-1.12;
+  while(xcur<1.08){
+   const bw=.12+Math.random()*.13;
+   const bh=.48+Math.random()*.18;
+   const colors=[0x5c3028,0x34403a,0x776449,0x3d4550,0x6b5542];
+   const book=new THREE.Mesh(
+    new THREE.BoxGeometry(bw,bh,.38),
+    mat(colors[Math.floor(Math.random()*colors.length)])
+   );
+   book.position.set(xcur+bw/2,.62+level*.85+bh/2,.04);
+   g.add(book);
+   xcur+=bw+.025;
+  }
+ }
+
+ if(album){
+  const book=new THREE.Group();
+  book.position.set(.15,2.2,.45);
+  book.rotation.x=-.12;
+  g.add(book);
+
+  const cover=new THREE.Mesh(
+   new THREE.BoxGeometry(.68,.92,.12),
+   mat(0x182b3d)
+  );
+  book.add(cover);
+
+  const gold=mat(0xb49a60);
+  const title=new THREE.Mesh(
+   new THREE.BoxGeometry(.38,.025,.008),gold
+  );
+  title.position.set(0,.1,.066);
+  book.add(title);
+
+  const year=new THREE.Mesh(
+   new THREE.BoxGeometry(.22,.012,.008),gold
+  );
+  year.position.set(0,-.08,.067);
+  book.add(year);
+
+  book.userData.interactive='album';
+  albumObject=book;
+  shelves.push(book);
+ }
+ shelves.push(g);
+}
+
+shelf(-4.9,-3);
+shelf(-4.9,1);
+shelf(-2.1,-5);
+shelf(-2.1,-1);
+shelf(1,-5);
+shelf(1,-1,true);
+shelf(4.2,-5);
+shelf(4.2,-1);
+
+box(2.7,.16,.9,wood2,4.8,1,5);
+box(.14,1,.14,wood,3.6,.5,5);
+box(.14,1,.14,wood,6,.5,5);
+
+for(let i=0;i<5;i++){
+ const b=box(.38,.06,.28,mat(0x78664a),-1.8+i*.19,.02,4.3+(i%2)*.12);
+ b.rotation.y=i*.3;
+}
+
+// 먼지
+const dustGeo=new THREE.BufferGeometry();
+const dustN=350;
+const dustPos=new Float32Array(dustN*3);
+
+for(let i=0;i<dustN;i++){
+ dustPos[i*3]=(Math.random()-.5)*12;
+ dustPos[i*3+1]=Math.random()*3.5;
+ dustPos[i*3+2]=(Math.random()-.5)*13;
+}
+
+dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPos,3));
+
+const dust=new THREE.Points(
+ dustGeo,
+ new THREE.PointsMaterial({
+  color:0xe6ddc9,
+  size:.025,
+  transparent:true,
+  opacity:.35
+ })
+);
+scene.add(dust);
+
+// 조작
+let yaw=0;
+let pitch=0;
+let keys={};
+let opened=false;
+let taken=false;
+let noteFound=false;
+let nearAlbum=false;
+
+const ray=new THREE.Raycaster();
+const center=new THREE.Vector2(0,0);
+
+document.addEventListener('keydown',e=>{
+ keys[e.code]=true;
+ if(e.code==='KeyE')interact();
+});
+
+document.addEventListener('keyup',e=>keys[e.code]=false);
+
+renderer.domElement.addEventListener('click',()=>{
+ if(!opened&&innerWidth>700){
+  renderer.domElement.requestPointerLock?.();
+ }
+});
+
+document.addEventListener('mousemove',e=>{
+ if(document.pointerLockElement===renderer.domElement&&!opened){
+  yaw-=e.movementX*.0022;
+  pitch-=e.movementY*.0022;
+  pitch=Math.max(-1.35,Math.min(1.35,pitch));
+ }
+});
+
+function interact(){
+ if(opened)return;
+
+ if(nearAlbum&&!taken){
+  taken=true;
+  if(albumObject)albumObject.visible=false;
+  showToast('졸업앨범을 꺼냈다.');
+  openAlbum();
+  return;
+ }
+
+ if(taken&&!noteFound&&lookingAtShelf()){
+  noteFound=true;
+  document.getElementById('noteUI').style.display='flex';
+ }
+}
+
+function lookingAtShelf(){
+ ray.setFromCamera(center,camera);
+ return ray.intersectObjects(shelves,true).length>0;
+}
+
+function showToast(s){
+ const t=document.getElementById('toast');
+ t.textContent=s;
+ t.style.opacity=1;
+ setTimeout(()=>t.style.opacity=0,1800);
+}
+
+// 모바일 조이스틱
+const mobile=innerWidth<=700;
+const joy=document.getElementById('mobile');
+const stick=document.getElementById('stick');
+const look=document.getElementById('lookzone');
+const interactBtn=document.getElementById('interact');
+
+let joyVec={x:0,y:0};
+let lookTouch=null;
+
+if(mobile){
+ joy.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const r=joy.getBoundingClientRect();
+  const t=e.touches[0];
+  let x=t.clientX-(r.left+r.width/2);
+  let y=t.clientY-(r.top+r.height/2);
+  let len=Math.hypot(x,y);
+  const max=38;
+
+  if(len>max){
+   x=x/len*max;
+   y=y/len*max;
+  }
+
+  joyVec={x:x/max,y:y/max};
+  stick.style.transform=`translate(${x}px,${y}px)`;
+ },{passive:false});
+
+ joy.addEventListener('touchend',()=>{
+  joyVec={x:0,y:0};
+  stick.style.transform='translate(0,0)';
+ });
+
+ look.addEventListener('touchstart',e=>{
+  const t=e.changedTouches[0];
+  lookTouch={x:t.clientX,y:t.clientY};
+ },{passive:true});
+
+ look.addEventListener('touchmove',e=>{
+  if(!lookTouch)return;
+  const t=e.changedTouches[0];
+
+  yaw-=(t.clientX-lookTouch.x)*.004;
+  pitch-=(t.clientY-lookTouch.y)*.004;
+  pitch=Math.max(-1.3,Math.min(1.3,pitch));
+
+  lookTouch={x:t.clientX,y:t.clientY};
+ },{passive:true});
+
+ look.addEventListener('touchend',()=>lookTouch=null);
+ interactBtn.addEventListener('click',interact);
+}
+
+// 졸업앨범
+const people=[
+ '최지우','김다현','유하람',
+ '김주은','노유나','정이안'
+];
+
+const roster=[
+ ...people,'카르멘','김나연','유예슬','김예온'
+];
+
+const photos={};
+let page=0;
+
+function albumPage(){
+ const L=document.getElementById('leftPage');
+ const R=document.getElementById('rightPage');
+
+ const title=`
+ <div class="book-sub">2024 SCHOOL YEARBOOK</div>
+ <h1 class="book-title">졸업앨범</h1>
+ <div class="book-sub">2024학년도</div>
+ <div class="school-stamp">졸업 기념<br>YEARBOOK</div>
+ `;
+
+ const group=`
+ <h2 class="page-heading">졸업생 단체 사진</h2>
+ <div class="group-placeholder">
+ 단체 사진 자리
+ </div>
+ `;
+
+ const profile=`
+ <h2 class="page-heading">졸업생 개인 사진</h2>
+ <div class="profiles">
+ ${people.map((n,i)=>`
+  <div class="profile" data-person="${i}">
+   ${photos[i]
+    ?`<img src="${photos[i]}">`
+    :`<div class="empty">사진 ${i+1}</div>`}
+   <small>${n}</small>
+   <input type="file" accept="image/*"
+    data-upload="${i}"
+    style="width:100%;font-size:9px;margin-top:4px">
+  </div>
+ `).join('')}
+ </div>
+ `;
+
+ const names=`
+ <h2 class="page-heading">졸업생 명단</h2>
+ <ol class="roster">
+ ${roster.map((n,i)=>`
+  <li><span>${i+1}.</span>${n}</li>
+ `).join('')}
+ </ol>
+ `;
+
+ if(page===0){
+  L.innerHTML=title;
+  R.innerHTML=group;
+ }else{
+  L.innerHTML=profile;
+  R.innerHTML=names;
+ }
+
+ document.querySelectorAll('[data-upload]').forEach(inp=>{
+  inp.addEventListener('change',e=>{
+   const f=e.target.files[0];
+   if(f){
+    photos[e.target.dataset.upload]=URL.createObjectURL(f);
+    albumPage();
+   }
+  });
+ });
+
+ document.querySelectorAll('[data-person]').forEach(el=>{
+  el.addEventListener('click',()=>{
+   const i=+el.dataset.person;
+   const d=document.getElementById('profileDetail');
+   d.style.display='flex';
+
+   document.getElementById('detailCard').innerHTML=`
+    ${photos[i]?`<img src="${photos[i]}">`:''}
+    <h2>${people[i]}</h2>
+    <p>2024학년도 졸업생</p>
+    <p style="font-size:12px">추가 정보는 추후 설정할 수 있습니다.</p>
+    <button id="detailClose">닫기</button>
+   `;
+
+   document.getElementById('detailClose').onclick=()=>{
+    d.style.display='none';
+   };
+  });
+ });
+}
+
+function openAlbum(){
+ opened=true;
+ document.exitPointerLock?.();
+ document.getElementById('albumUI').style.display='flex';
+ page=0;
+ albumPage();
+ document.getElementById('hint').style.opacity=0;
+}
+
+document.getElementById('closeBook').onclick=()=>{
+ document.getElementById('albumUI').style.display='none';
+ opened=false;
+};
+
+document.getElementById('prev').onclick=()=>{
+ page=Math.max(0,page-1);
+ albumPage();
+};
+
+document.getElementById('next').onclick=()=>{
+ page=Math.min(1,page+1);
+ albumPage();
+};
+
+document.getElementById('closeNote').onclick=()=>{
+ document.getElementById('noteUI').style.display='none';
+};
+
+document.addEventListener('keydown',e=>{
+ if(e.code==='Escape'){
+  document.getElementById('albumUI').style.display='none';
+  document.getElementById('noteUI').style.display='none';
+  opened=false;
+ }
+});
+
+// 게임 루프
+const clock=new THREE.Clock();
+
+function animate(){
+ requestAnimationFrame(animate);
+
+ const dt=Math.min(clock.getDelta(),.04);
+
+ camera.rotation.order='YXZ';
+ camera.rotation.y=yaw;
+ camera.rotation.x=pitch;
+
+ let forward=
+  (keys['KeyW']?1:0)-
+  (keys['KeyS']?1:0)-joyVec.y;
+
+ let side=
+  (keys['KeyD']?1:0)-
+  (keys['KeyA']?1:0)+joyVec.x;
+
+ if(!opened){
+  const speed=3*dt;
+
+  const dir=new THREE.Vector3(
+   -Math.sin(yaw),0,-Math.cos(yaw)
+  );
+
+  const right=new THREE.Vector3(
+   Math.cos(yaw),0,-Math.sin(yaw)
+  );
+
+  camera.position.addScaledVector(dir,forward*speed);
+  camera.position.addScaledVector(right,side*speed);
+
+  camera.position.x=THREE.MathUtils.clamp(camera.position.x,-6.3,6.3);
+  camera.position.z=THREE.MathUtils.clamp(camera.position.z,-7.1,7.1);
+  camera.position.y=1.65;
+
+  ray.setFromCamera(center,camera);
+  const hits=ray.intersectObjects(shelves,true);
+
+  nearAlbum=!taken&&hits.some(h=>
+   h.object.userData.interactive==='album'||
+   h.object.parent?.userData.interactive==='album'
+  );
+
+  const nearNote=taken&&!noteFound&&hits.length>0;
+  const hint=document.getElementById('hint');
+
+  hint.textContent=nearAlbum
+   ?'E 졸업앨범 꺼내기'
+   :'E 책장 안쪽 살펴보기';
+
+  hint.style.opacity=(nearAlbum||nearNote)?'1':'0';
+ }
+
+ const p=dust.geometry.attributes.position;
+
+ for(let i=0;i<dustN;i++){
+  p.array[i*3+1]+=.0015;
+  if(p.array[i*3+1]>3.7)p.array[i*3+1]=0;
+ }
+
+ p.needsUpdate=true;
+ renderer.render(scene,camera);
+}
+
+animate();
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
